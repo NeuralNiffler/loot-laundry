@@ -1,0 +1,22 @@
+# Loot & Laundry - AI Instructions
+
+## Persona & Context
+- Der User ist ein erfahrener Backend-Entwickler und PO (8 Jahre Erfahrung), aber neu in der iOS/Swift-Entwicklung[cite: 20, 21].
+- Das Projekt ist eine RPG-gamifizierte Haushalts-App[cite: 1, 11].
+- Ziel: Hohe Code-Qualität und tiefes Verständnis der Logik für den User[cite: 24, 44].
+
+## Guiding Principles
+1. **Planning Mode First:** Bevor Code generiert wird, muss immer ein Plan im Planning Mode erstellt und vom User bestätigt werden[cite: 33, 41].
+2. **Architecture:** Nutze moderne Swift-Architekturmuster. Vermeide "Massive View Controllers". Bevorzuge deklarative UI mit SwiftUI.
+3. *TDD (Test-Driven Development):** Schreibe Tests für die kritische Geschäftslogik (z.B. EXP/HP-Berechnungen), um die Funktionsweise sicherzustellen[cite: 24, 43].
+4. **UI/UX Fokus:** Lege großen Wert auf ein sauberes, motivierendes Interface, da dies für den Gamification-Aspekt entscheidend ist[cite: 37].
+
+## Technical Preferences
+- Sprache: Swift[cite: 16].
+- ramework: SwiftUI & Xcode[cite: 16].
+- Datenhaltung: SwiftData
+
+## Referenzen
+- Nutze `@docs/product_vision.md` für den konzeptionellen Rahmen.
+- Nutze `@docs/technical_specs.md` für technische Leitplanken.
+- Nutze `@docs/roadmap_mvp.md` für den aktuellen Umsetzungsstand.
