@@ -4,7 +4,7 @@ import SwiftData
 struct TaskListView: View {
 
     @Environment(\.modelContext)    private var context
-    @Query(sort: \QuestTemplate.createdAt, order: .forward)
+    @Query(sort: \QuestTemplate.createdAt, order: .reverse)
     private var allTemplates: [QuestTemplate]
 
     @Query(sort: \QuestInstance.createdAt, order: .forward)
