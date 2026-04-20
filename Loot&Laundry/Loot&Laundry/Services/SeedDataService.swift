@@ -7,8 +7,8 @@ struct SeedDataService {
     // MARK: - Vordefinierte Vorlagen
 
     private static let predefinedTemplateData: [(String, TaskDifficulty, Bool, RecurrenceRule?)] = [
-        ("Geschirrspüler ausräumen",    .medium, true,  .daily),
-        ("Geschirrspüler einräumen",    .easy,   true,  .daily),
+        ("Geschirrspüler ausräumen",    .medium, true,  nil),
+        ("Geschirrspüler einräumen",    .easy,   true,  nil),
         ("Bett machen",                 .easy,   true,  .daily),
         ("Küche wischen",               .medium, true,  .weekly),
         ("Müll rausbringen",            .easy,   true,  .weekly),
@@ -16,7 +16,7 @@ struct SeedDataService {
         ("Wäsche wegräumen",            .medium, false, nil),
         ("Staubsaugen",                 .hard,   true,  .weekly),
         ("Bad putzen",                  .hard,   true,  .weekly),
-        ("Einkaufen",                   .medium, true,  .weekly),
+        ("Einkaufen",                   .medium, true,  nil),
     ]
 
     /// Legt vordefinierte Vorlagen an – aber nur beim allerersten Start (idempotent).

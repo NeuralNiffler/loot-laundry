@@ -17,7 +17,7 @@ struct CharacterView: View {
 
                 if let char = character {
                     ScrollView {
-                        VStack(spacing: 28) {
+                        VStack(spacing: 20) {
                             characterPortrait(char)
                             evolutionInfo(char)
                             expSection(char)
@@ -25,7 +25,7 @@ struct CharacterView: View {
                             statsSection(char)
                         }
                         .padding(.horizontal, 20)
-                        .padding(.top, 16)
+                        .padding(.top, 4)
                         .padding(.bottom, 40)
                     }
                 } else {
@@ -39,7 +39,7 @@ struct CharacterView: View {
                 }
             }
             .navigationTitle("Charakter")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.cardBackground, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
@@ -49,12 +49,6 @@ struct CharacterView: View {
 
     private func characterPortrait(_ char: PlayerCharacter) -> some View {
         ZStack {
-            // Glowing background circle
-            Circle()
-                .fill(Theme.expColor.opacity(0.12))
-                .frame(width: 220, height: 220)
-                .blur(radius: 20)
-
             Circle()
                 .strokeBorder(
                     LinearGradient(
@@ -64,12 +58,18 @@ struct CharacterView: View {
                     ),
                     lineWidth: 2
                 )
-                .frame(width: 190, height: 190)
 
             Image(char.currentEvolution.assetName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 160, height: 160)
+                .frame(width: 250, height: 250)
+        }
+        .frame(width: 300, height: 300)
+        .background {
+            Circle()
+                .fill(Theme.expColor.opacity(0.12))
+                .frame(width: 380, height: 380)
+                .blur(radius: 24)
         }
     }
 
