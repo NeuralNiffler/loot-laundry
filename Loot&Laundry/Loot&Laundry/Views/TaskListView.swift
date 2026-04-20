@@ -66,8 +66,8 @@ struct TaskListView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, 24)
             }
-            .navigationTitle("Quests")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.cardBackground, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }

@@ -38,7 +38,7 @@ struct CharacterView: View {
                     evolutionOverlay
                 }
             }
-            .navigationTitle("Charakter")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.cardBackground, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
