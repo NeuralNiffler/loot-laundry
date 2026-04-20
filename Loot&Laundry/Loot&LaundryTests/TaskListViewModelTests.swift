@@ -130,6 +130,37 @@ struct TaskListViewModelTests {
         #expect(viewModel.triggeredEvolution == .gelehrte)
     }
 
+    @Test("completeInstance erzeugt bei wiederkehrend eine Folgeinstanz mit neuem dueDate")
+    func completeRecurringSpawnsNextInstance() {
+        let context = ViewModelMockModelContext()
+        let template = QuestTemplate(
+            title: "Täglich",
+            difficulty: .easy,
+            isRecurring: true,
+            recurrenceRule: .daily,
+            isPredefined: false
+        )
+        let instance = QuestInstance(template: template)
+        instance.dueDate = QuestSchedulingService.startOfToday()
+
+        context.insert(template)
+        context.insert(instance)
+
+        let character = PlayerCharacter(name: "Held")
+        context.insert(character)
+
+        viewModel.completeInstance(instance, character: character, context: context)
+
+        let open = template.instances.filter { !$0.isCompleted }
+        #expect(open.count == 1)
+        let tomorrow = Calendar.current.date(
+            byAdding: .day,
+            value: 1,
+            to: QuestSchedulingService.startOfToday()
+        )!
+        #expect(Calendar.current.isDate(open[0].dueDate ?? .distantPast, inSameDayAs: tomorrow))
+    }
+
     @Test("completeInstance ignoriert bereits abgehakte Instanzen")
     func completeInstanceIgnoresCompletedInstance() {
         let context = ViewModelMockModelContext()

@@ -20,6 +20,24 @@ struct TaskListView: View {
     var characterViewModel: CharacterViewModel
 
     private var openInstances:      [QuestInstance] { allInstances.filter { !$0.isCompleted } }
+
+    /// Sortierung: Fälligkeit aufsteigend (überfällige zuerst), sonst Erstellzeit.
+    private var openInstancesSorted: [QuestInstance] {
+        openInstances.sorted { a, b in
+            switch (a.dueDate, b.dueDate) {
+            case let (da?, db?):
+                if da != db { return da < db }
+                return a.createdAt < b.createdAt
+            case (nil, nil):
+                return a.createdAt < b.createdAt
+            case (nil, _?):
+                return false
+            case (_?, nil):
+                return true
+            }
+        }
+    }
+
     private var completedToday:     [QuestInstance] { allInstances.filter { $0.isCompletedToday } }
     private var character: PlayerCharacter?          { characters.first }
 
@@ -101,7 +119,7 @@ struct TaskListView: View {
             // -- Offene Instanzen --
             if !openInstances.isEmpty {
                 Section {
-                    ForEach(openInstances) { instance in
+                    ForEach(openInstancesSorted) { instance in
                         InstanceRowView(instance: instance) {
                             if let char = character {
                                 withAnimation(.spring(response: 0.4)) {
@@ -284,7 +302,7 @@ private struct InstanceRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(instance.title)
                     .font(.body.bold())
-                    .foregroundStyle(Theme.textPrimary)
+                    .foregroundStyle(titleColor(for: instance))
 
                 HStack(spacing: 8) {
                     DifficultyBadge(difficulty: instance.difficulty)
@@ -308,6 +326,14 @@ private struct InstanceRowView: View {
                 .clipShape(Capsule())
         }
         .padding(.vertical, 4)
+    }
+
+    /// Titelfarbe nach Fälligkeit (ohne Text-Badge).
+    private func titleColor(for instance: QuestInstance) -> Color {
+        guard instance.dueDate != nil else { return Theme.textPrimary }
+        if instance.isOverdue { return Color(red: 1.0, green: 0.38, blue: 0.38) }
+        if instance.isDueToday { return Theme.gold }
+        return Color(red: 0.58, green: 0.72, blue: 0.95)
     }
 }
 

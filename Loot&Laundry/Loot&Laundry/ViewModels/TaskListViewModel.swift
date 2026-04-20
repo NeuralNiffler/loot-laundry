@@ -22,6 +22,10 @@ final class TaskListViewModel {
         instance.expEarned   = earnedEXP
         character.totalEXP  += earnedEXP
 
+        if instance.isRecurring {
+            QuestSchedulingService.spawnNextRecurringInstance(after: instance, context: context)
+        }
+
         if let evo = newEvo {
             triggeredEvolution = evo
         }

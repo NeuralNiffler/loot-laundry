@@ -32,9 +32,9 @@ enum CharacterEvolution: Int, CaseIterable, Codable, Equatable {
         switch self {
         case .novize:   return 0
         case .gelehrte: return 100
-        case .magier:   return 300
-        case .arkanist: return 600
-        case .meister:  return 1000
+        case .magier:   return 400
+        case .arkanist: return 900
+        case .meister:  return 1600
         }
     }
 

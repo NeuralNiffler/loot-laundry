@@ -26,6 +26,7 @@ struct MainTabView: View {
             configureTabBarAppearance()
             SeedDataService.seedPlayerIfNeeded(context: context)
             SeedDataService.seedTemplatesIfNeeded(context: context)
+            QuestSchedulingService.backfillDueDatesIfNeeded(context: context)
             QuestSchedulingService.ensureRecurringInstances(context: context)
         }
         // Wenn eine Evolution getriggert wurde, zur Charakter-Ansicht wechseln
