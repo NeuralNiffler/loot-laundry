@@ -270,6 +270,22 @@ struct CharacterView: View {
                     characterViewModel.dismissEvolutionOverlay()
                 }
 
+            EvolutionCelebrationLayer(isActive: characterViewModel.showEvolutionOverlay)
+
+            RadialGradient(
+                colors: [
+                    Theme.gold.opacity(0.18),
+                    Theme.expColor.opacity(0.06),
+                    Color.clear,
+                ],
+                center: .center,
+                startRadius: 20,
+                endRadius: 320
+            )
+            .ignoresSafeArea()
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
+
             VStack(spacing: 24) {
                 // Glow Ring Animation
                 ZStack {
