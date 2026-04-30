@@ -29,12 +29,20 @@ final class TaskListViewModel {
         if let evo = newEvo {
             triggeredEvolution = evo
         }
+
+        Task { @MainActor in
+            await NotificationSyncService.shared.requestAuthorizationIfNeededOnFirstCompletion()
+            await NotificationSyncService.shared.resync(context: context)
+        }
     }
 
     // MARK: - Instanz löschen (Swipe)
 
     func deleteInstance(_ instance: QuestInstance, context: ModelContext) {
         context.delete(instance)
+        Task { @MainActor in
+            await NotificationSyncService.shared.resync(context: context)
+        }
     }
 
     // MARK: - Instanz manuell spawnen
@@ -56,7 +64,7 @@ final class TaskListViewModel {
             title: title,
             difficulty: difficulty,
             isRecurring: isRecurring,
-            recurrenceRule: recurrenceRule,
+            recurrenceRule: isRecurring ? recurrenceRule : nil,
             isPredefined: false
         )
         context.insert(template)

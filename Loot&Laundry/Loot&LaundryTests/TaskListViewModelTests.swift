@@ -3,31 +3,6 @@ import Foundation
 import SwiftData
 @testable import Loot_Laundry
 
-// MARK: - Mock ModelContext für ViewModel Tests
-
-class ViewModelMockModelContext: ModelContext {
-    var insertedObjects: [any PersistentModel] = []
-    var deletedObjects: [any PersistentModel] = []
-
-    init() {
-        let container = try! ModelContainer(
-            for: QuestTemplate.self, QuestInstance.self, PlayerCharacter.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        super.init(container)
-    }
-
-    override func insert<T>(_ model: T) where T : PersistentModel {
-        insertedObjects.append(model)
-        super.insert(model)
-    }
-
-    override func delete<T>(_ model: T) where T : PersistentModel {
-        deletedObjects.append(model)
-        super.delete(model)
-    }
-}
-
 // MARK: - TaskListViewModel Tests
 
 @Suite("TaskListViewModel Tests")
@@ -39,7 +14,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance setzt completedAt")
     func completeInstanceSetsCompletedAt() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -62,7 +37,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance setzt expEarned korrekt")
     func completeInstanceSetsExpEarned() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .medium,
@@ -84,7 +59,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance vergibt EXP an Character")
     func completeInstanceGrantsCharacterEXP() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .hard,
@@ -107,7 +82,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance triggert Evolution bei Levelup")
     func completeInstanceTriggersEvolutionOnLevelUp() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .hard,
@@ -132,7 +107,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance erzeugt bei wiederkehrend eine Folgeinstanz mit neuem dueDate")
     func completeRecurringSpawnsNextInstance() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Täglich",
             difficulty: .easy,
@@ -163,7 +138,7 @@ struct TaskListViewModelTests {
 
     @Test("completeInstance ignoriert bereits abgehakte Instanzen")
     func completeInstanceIgnoresCompletedInstance() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -190,7 +165,7 @@ struct TaskListViewModelTests {
 
     @Test("spawnInstance ruft QuestSchedulingService auf")
     func spawnInstanceCallsSchedulingService() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -198,20 +173,20 @@ struct TaskListViewModelTests {
         )
         context.insert(template)
 
-        let initialCount = context.insertedObjects.count
+        let initialInstances = TestSupport.instanceCount(context)
 
         viewModel.spawnInstance(from: template, context: context)
 
         // Eine neue Instanz sollte eingefügt sein
-        #expect(context.insertedObjects.count > initialCount)
+        #expect(TestSupport.instanceCount(context) > initialInstances)
     }
 
     // MARK: - addTemplate Tests
 
     @Test("addTemplate erstellt neues Template")
     func addTemplateCreatesTemplate() {
-        let context = ViewModelMockModelContext()
-        let initialCount = context.insertedObjects.count
+        let context = TestSupport.makeModelContext()
+        let initialTemplates = TestSupport.templateCount(context)
 
         viewModel.addTemplate(
             title: "Neue Quest",
@@ -221,13 +196,14 @@ struct TaskListViewModelTests {
             context: context
         )
 
-        #expect(context.insertedObjects.count == initialCount + 1)
+        #expect(TestSupport.templateCount(context) == initialTemplates + 1)
     }
 
     @Test("addTemplate erstellt Template OHNE sofortige Instanz")
     func addTemplateDoesNotSpawnInstance() {
-        let context = ViewModelMockModelContext()
-        let initialCount = context.insertedObjects.count
+        let context = TestSupport.makeModelContext()
+        let initialTemplates = TestSupport.templateCount(context)
+        let initialInstances = TestSupport.instanceCount(context)
 
         viewModel.addTemplate(
             title: "Neue Quest",
@@ -238,16 +214,15 @@ struct TaskListViewModelTests {
         )
 
         // Nur Template, keine Instanz
-        #expect(context.insertedObjects.count == initialCount + 1)
+        #expect(TestSupport.templateCount(context) == initialTemplates + 1)
+        #expect(TestSupport.instanceCount(context) == initialInstances)
 
-        // Prüfe dass inserted object ein Template ist
-        let lastInserted = context.insertedObjects.last
-        #expect(lastInserted is QuestTemplate)
+        #expect(TestSupport.template(withTitle: "Neue Quest", in: context) != nil)
     }
 
     @Test("addTemplate setzt Eigenschaften korrekt")
     func addTemplateSetProperties() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
 
         viewModel.addTemplate(
             title: "Geschirrspüler ausräumen",
@@ -257,7 +232,7 @@ struct TaskListViewModelTests {
             context: context
         )
 
-        guard let template = context.insertedObjects.last as? QuestTemplate else {
+        guard let template = TestSupport.template(withTitle: "Geschirrspüler ausräumen", in: context) else {
             Issue.record("Template nicht gefunden")
             return
         }
@@ -271,17 +246,17 @@ struct TaskListViewModelTests {
 
     @Test("addTemplate setzt recurrenceRule auf nil wenn isRecurring false")
     func addTemplateNullsRecurrenceRuleWhenNotRecurring() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
 
         viewModel.addTemplate(
-            title: "Test",
+            title: "RecurrenceNullTest",
             difficulty: .easy,
             isRecurring: false,
             recurrenceRule: .daily,  // Wird ignoriert
             context: context
         )
 
-        guard let template = context.insertedObjects.last as? QuestTemplate else {
+        guard let template = TestSupport.template(withTitle: "RecurrenceNullTest", in: context) else {
             Issue.record("Template nicht gefunden")
             return
         }
@@ -355,7 +330,7 @@ struct TaskListViewModelTests {
 
     @Test("deleteTemplate löscht Template aus Context")
     func deleteTemplateRemovesFromContext() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -363,18 +338,18 @@ struct TaskListViewModelTests {
         )
         context.insert(template)
 
-        let initialCount = context.deletedObjects.count
+        #expect(TestSupport.templateCount(context) == 1)
 
         viewModel.deleteTemplate(template, context: context)
 
-        #expect(context.deletedObjects.count == initialCount + 1)
+        #expect(TestSupport.templateCount(context) == 0)
     }
 
     // MARK: - deleteInstance Tests
 
     @Test("deleteInstance löscht Instanz aus Context")
     func deleteInstanceRemovesFromContext() {
-        let context = ViewModelMockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -385,11 +360,11 @@ struct TaskListViewModelTests {
         context.insert(template)
         context.insert(instance)
 
-        let initialCount = context.deletedObjects.count
+        #expect(TestSupport.instanceCount(context) == 1)
 
         viewModel.deleteInstance(instance, context: context)
 
-        #expect(context.deletedObjects.count == initialCount + 1)
+        #expect(TestSupport.instanceCount(context) == 0)
     }
 
     // MARK: - clearTriggeredEvolution Tests

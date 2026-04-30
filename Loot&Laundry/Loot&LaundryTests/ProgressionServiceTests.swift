@@ -44,24 +44,24 @@ struct ProgressionServiceTests {
         #expect(sut.evolution(for: 100) == .gelehrte)
     }
 
-    @Test("299 EXP = Gelehrte")
+    @Test("399 EXP = Gelehrte (knapp unter Magier)")
     func evolutionBeforeMagier() {
-        #expect(sut.evolution(for: 299) == .gelehrte)
+        #expect(sut.evolution(for: 399) == .gelehrte)
     }
 
-    @Test("300 EXP = Magier")
+    @Test("400 EXP = Magier")
     func evolutionAtMagier() {
-        #expect(sut.evolution(for: 300) == .magier)
+        #expect(sut.evolution(for: 400) == .magier)
     }
 
-    @Test("600 EXP = Arkanist")
+    @Test("900 EXP = Arkanist")
     func evolutionAtArkanist() {
-        #expect(sut.evolution(for: 600) == .arkanist)
+        #expect(sut.evolution(for: 900) == .arkanist)
     }
 
-    @Test("1000 EXP = Meister")
+    @Test("1600 EXP = Meister")
     func evolutionAtMeister() {
-        #expect(sut.evolution(for: 1000) == .meister)
+        #expect(sut.evolution(for: 1600) == .meister)
     }
 
     @Test("Weit über Maximum bleibt Meister")
@@ -114,14 +114,14 @@ struct ProgressionServiceTests {
 
     @Test("Fortschritt ist 1.0 auf Max-Stufe")
     func progressAtMaxLevel() {
-        let progress = sut.progressToNextLevel(currentEXP: 1000)
+        let progress = sut.progressToNextLevel(currentEXP: 1600)
         #expect(progress == 1.0)
     }
 
     @Test("EXP in aktueller Stufe korrekt berechnet")
     func expInCurrentLevel() {
-        // Bei 350 EXP: Magier-Schwelle = 300 → 50 EXP in dieser Stufe
-        #expect(sut.expInCurrentLevel(currentEXP: 350) == 50)
+        // Bei 450 EXP: Magier ab 400 → 50 EXP in der Magier-Stufe
+        #expect(sut.expInCurrentLevel(currentEXP: 450) == 50)
     }
 
     @Test("EXP bis zur nächsten Stufe korrekt berechnet")
@@ -132,7 +132,7 @@ struct ProgressionServiceTests {
 
     @Test("EXP bis zur nächsten Stufe ist nil auf Max-Stufe")
     func expRequiredIsNilAtMaxLevel() {
-        #expect(sut.expRequiredForNextLevel(currentEXP: 1000) == nil)
+        #expect(sut.expRequiredForNextLevel(currentEXP: 1600) == nil)
     }
 }
 

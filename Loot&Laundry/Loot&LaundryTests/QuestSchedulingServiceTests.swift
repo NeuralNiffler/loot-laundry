@@ -3,36 +3,6 @@ import Foundation
 import SwiftData
 @testable import Loot_Laundry
 
-// MARK: - Mock ModelContext
-
-class MockModelContext: ModelContext {
-    var insertedObjects: [any PersistentModel] = []
-    var deletedObjects: [any PersistentModel] = []
-    var fetchedTemplates: [QuestTemplate] = []
-
-    init() {
-        let container = try! ModelContainer(
-            for: QuestTemplate.self, QuestInstance.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        super.init(container)
-    }
-
-    override func insert<T>(_ model: T) where T : PersistentModel {
-        insertedObjects.append(model)
-        super.insert(model)
-    }
-
-    override func delete<T>(_ model: T) where T : PersistentModel {
-        deletedObjects.append(model)
-        super.delete(model)
-    }
-
-    func setFetchedTemplates(_ templates: [QuestTemplate]) {
-        fetchedTemplates = templates
-    }
-}
-
 // MARK: - QuestSchedulingService Tests
 
 @Suite("QuestSchedulingService Tests")
@@ -42,7 +12,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnInstance erzeugt neue Instanz aus Template")
     func spawnInstanceCreatesInstance() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test Quest",
             difficulty: .medium,
@@ -60,7 +30,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnInstance kann mehrfach für gleiches Template aufgerufen werden")
     func spawnInstanceMultipleTimes() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Geschirrspüler ausräumen",
             difficulty: .medium,
@@ -82,7 +52,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnInstance fügt Instanz in Context ein")
     func spawnInstanceInsertsIntoContext() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Test",
             difficulty: .easy,
@@ -90,17 +60,17 @@ struct QuestSchedulingServiceTests {
         )
         context.insert(template)
 
-        let initialCount = context.insertedObjects.count
+        let initialCount = TestSupport.instanceCount(context)
         _ = QuestSchedulingService.spawnInstance(from: template, context: context)
 
-        #expect(context.insertedObjects.count == initialCount + 1)
+        #expect(TestSupport.instanceCount(context) == initialCount + 1)
     }
 
     // MARK: - ensureRecurringInstances Tests
 
     @Test("ensureRecurringInstances erstellt Instanz wenn keine existiert")
     func ensureRecurringInstancesCreatesWhenMissing() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         
         // Template ohne Instanzen
         let template = QuestTemplate(
@@ -111,13 +81,12 @@ struct QuestSchedulingServiceTests {
             isPredefined: false
         )
         context.insert(template)
-        context.setFetchedTemplates([template])
 
-        let initialCount = context.insertedObjects.count
+        let initialCount = TestSupport.instanceCount(context)
         QuestSchedulingService.ensureRecurringInstances(context: context)
 
         // Mindestens eine Instanz sollte hinzugefügt werden
-        #expect(context.insertedObjects.count > initialCount)
+        #expect(TestSupport.instanceCount(context) > initialCount)
         let newInstance = template.instances.first { !$0.isCompleted }
         #expect(newInstance?.dueDate != nil)
         let today = QuestSchedulingService.startOfToday()
@@ -126,7 +95,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("ensureRecurringInstances erstellt NICHT wenn offene Instanz existiert")
     func ensureRecurringInstancesSkipsIfExists() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         
         let template = QuestTemplate(
             title: "Täglich",
@@ -140,20 +109,20 @@ struct QuestSchedulingServiceTests {
         let existingInstance = QuestInstance(template: template)
         existingInstance.createdAt = Date()
         template.instances.append(existingInstance)
-        
-        context.insert(template)
-        context.setFetchedTemplates([template])
 
-        let initialCount = context.insertedObjects.count
+        context.insert(template)
+        context.insert(existingInstance)
+
+        let initialCount = TestSupport.instanceCount(context)
         QuestSchedulingService.ensureRecurringInstances(context: context)
 
         // Keine neue Instanz sollte hinzugefügt werden
-        #expect(context.insertedObjects.count == initialCount)
+        #expect(TestSupport.instanceCount(context) == initialCount)
     }
 
     @Test("ensureRecurringInstances erstellt NICHT wenn abgehakte Instanz existiert")
     func ensureRecurringInstancesIgnoresCompletedInstances() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         
         let template = QuestTemplate(
             title: "Test",
@@ -168,15 +137,15 @@ struct QuestSchedulingServiceTests {
         completedInstance.createdAt = Date()
         completedInstance.completedAt = Date()
         template.instances.append(completedInstance)
-        
-        context.insert(template)
-        context.setFetchedTemplates([template])
 
-        let initialCount = context.insertedObjects.count
+        context.insert(template)
+        context.insert(completedInstance)
+
+        let initialCount = TestSupport.instanceCount(context)
         QuestSchedulingService.ensureRecurringInstances(context: context)
 
         // Eine NEUE offene Instanz sollte erzeugt werden
-        #expect(context.insertedObjects.count > initialCount)
+        #expect(TestSupport.instanceCount(context) > initialCount)
         let open = template.instances.filter { !$0.isCompleted }
         #expect(open.count == 1)
         #expect(Calendar.current.isDate(open.first?.dueDate ?? .distantPast, inSameDayAs: QuestSchedulingService.startOfToday()))
@@ -184,7 +153,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("ensureRecurringInstances berücksichtigt nur wiederkehrende Templates")
     func ensureRecurringInstancesIgnoresNonRecurring() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         
         let nonRecurringTemplate = QuestTemplate(
             title: "Einmalig",
@@ -194,18 +163,17 @@ struct QuestSchedulingServiceTests {
         )
         
         context.insert(nonRecurringTemplate)
-        context.setFetchedTemplates([])  // Non-recurring nicht in Fetch-Result
 
-        let initialCount = context.insertedObjects.count
+        let initialCount = TestSupport.instanceCount(context)
         QuestSchedulingService.ensureRecurringInstances(context: context)
 
         // Keine neue Instanz sollte erzeugt werden
-        #expect(context.insertedObjects.count == initialCount)
+        #expect(TestSupport.instanceCount(context) == initialCount)
     }
 
     @Test("ensureRecurringInstances verarbeitet mehrere Templates")
     func ensureRecurringInstancesMultipleTemplates() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         
         let template1 = QuestTemplate(
             title: "Täglich 1",
@@ -225,20 +193,19 @@ struct QuestSchedulingServiceTests {
         
         context.insert(template1)
         context.insert(template2)
-        context.setFetchedTemplates([template1, template2])
 
-        let initialCount = context.insertedObjects.count
+        let initialCount = TestSupport.instanceCount(context)
         QuestSchedulingService.ensureRecurringInstances(context: context)
 
         // Mindestens 2 neue Instanzen sollten hinzugefügt werden (eine pro Template)
-        #expect(context.insertedObjects.count >= initialCount + 2)
+        #expect(TestSupport.instanceCount(context) >= initialCount + 2)
     }
 
     // MARK: - backfillDueDatesIfNeeded
 
     @Test("backfillDueDatesIfNeeded setzt dueDate auf heute für offene wiederkehrende ohne Datum")
     func backfillSetsDueDateForOpenRecurring() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let template = QuestTemplate(
             title: "Alt",
             difficulty: .easy,
@@ -282,7 +249,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnNextRecurringInstance rechtzeitig täglich -> Fälligkeit morgen")
     func spawnNextOnTimeDaily() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let cal = Calendar.current
         let today = QuestSchedulingService.startOfToday(calendar: cal)
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
@@ -310,7 +277,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnNextRecurringInstance früh erledigt -> Rhythmus am Due-Date")
     func spawnNextEarlyCompletionAnchorsOnDue() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let cal = Calendar.current
         let today = QuestSchedulingService.startOfToday(calendar: cal)
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
@@ -339,7 +306,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnNextRecurringInstance überfällig -> ab Erledigung +1 Tag")
     func spawnNextOverdueDaily() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let cal = Calendar.current
         let today = QuestSchedulingService.startOfToday(calendar: cal)
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
@@ -368,7 +335,7 @@ struct QuestSchedulingServiceTests {
 
     @Test("spawnNextRecurringInstance wöchentlich rechtzeitig -> +1 Woche")
     func spawnNextOnTimeWeekly() {
-        let context = MockModelContext()
+        let context = TestSupport.makeModelContext()
         let cal = Calendar.current
         let today = QuestSchedulingService.startOfToday(calendar: cal)
         let nextWeek = cal.date(byAdding: .weekOfYear, value: 1, to: today)!
