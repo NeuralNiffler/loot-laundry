@@ -17,9 +17,23 @@ struct TaskListView: View {
     @State private var showAddSheet        = false
     @State private var templateToEdit:     QuestTemplate? = nil
 
+    @State private var templateSearchText       = ""
+    @State private var templateSearchExpanded   = false
+    @State private var openQuestSearchText      = ""
+    @State private var completedTodaySearchText = ""
+    @State private var openQuestSearchExpanded      = false
+    @State private var completedTodaySearchExpanded = false
+    @State private var difficultyFilter       = QuestDifficultyFilter.all
+    @State private var recurrenceFilter       = QuestRecurrenceFilter.all
+    @State private var dueFilter              = QuestDueFilter.all
+
     var characterViewModel: CharacterViewModel
 
     private var openInstances:      [QuestInstance] { allInstances.filter { !$0.isCompleted } }
+
+    private var filteredTemplates: [QuestTemplate] {
+        allTemplates.filter { QuestListFilter.matchesTemplate($0, searchText: templateSearchText) }
+    }
 
     /// Sortierung: Fälligkeit aufsteigend (überfällige zuerst), sonst Erstellzeit.
     private var openInstancesSorted: [QuestInstance] {
@@ -38,7 +52,44 @@ struct TaskListView: View {
         }
     }
 
+    private var filteredOpenInstancesSorted: [QuestInstance] {
+        openInstancesSorted.filter {
+            QuestListFilter.matchesOpenInstance(
+                $0,
+                searchText: openQuestSearchText,
+                difficulty: difficultyFilter,
+                recurrence: recurrenceFilter,
+                due: dueFilter
+            )
+        }
+    }
+
     private var completedToday:     [QuestInstance] { allInstances.filter { $0.isCompletedToday } }
+
+    private var filteredCompletedToday: [QuestInstance] {
+        completedToday.filter { QuestListFilter.matchesCompletedInstance($0, searchText: completedTodaySearchText) }
+    }
+
+    private var openInstanceFiltersActive: Bool {
+        QuestListFilter.openInstancesFiltersActive(
+            difficulty: difficultyFilter,
+            recurrence: recurrenceFilter,
+            due: dueFilter
+        )
+    }
+
+    private var templateSearchActive: Bool {
+        templateSearchExpanded || !QuestListFilter.trimmedSearch(templateSearchText).isEmpty
+    }
+
+    private var openQuestSearchShowsActiveIndicator: Bool {
+        openQuestSearchExpanded || !QuestListFilter.trimmedSearch(openQuestSearchText).isEmpty
+    }
+
+    private var completedTodaySearchShowsActiveIndicator: Bool {
+        completedTodaySearchExpanded || !QuestListFilter.trimmedSearch(completedTodaySearchText).isEmpty
+    }
+
     private var character: PlayerCharacter?          { characters.first }
 
     var body: some View {
@@ -92,51 +143,96 @@ struct TaskListView: View {
             // -- Vorlagen-Bibliothek --
             if !allTemplates.isEmpty {
                 Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(allTemplates) { template in
-                                TemplateCard(template: template) {
-                                    withAnimation(.spring(response: 0.3)) {
-                                        viewModel.spawnInstance(from: template, context: context)
+                    if templateSearchExpanded {
+                        templateSearchField
+                            .listRowBackground(Theme.cardBackground)
+                    }
+                    if filteredTemplates.isEmpty {
+                        Text("Keine Vorlagen für diese Suche.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 12)
+                            .listRowBackground(Theme.cardBackground)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(filteredTemplates) { template in
+                                    TemplateCard(template: template) {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            viewModel.spawnInstance(from: template, context: context)
+                                        }
+                                    } onEdit: {
+                                        templateToEdit = template
+                                    } onDelete: {
+                                        viewModel.deleteTemplate(template, context: context)
                                     }
-                                } onEdit: {
-                                    templateToEdit = template
-                                } onDelete: {
-                                    viewModel.deleteTemplate(template, context: context)
                                 }
                             }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 4)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 4)
+                        .listRowBackground(Theme.cardBackground)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     }
                 } header: {
-                    sectionHeader("Vorlagen", count: allTemplates.count, icon: "books.vertical")
+                    sectionHeader("Vorlagen", count: filteredTemplates.count, icon: "books.vertical") {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { templateSearchExpanded.toggle() }
+                        } label: {
+                            Image(systemName: templateSearchActive ? "magnifyingglass.circle.fill" : "magnifyingglass")
+                                .foregroundStyle(Theme.gold)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(templateSearchExpanded ? "Vorlagensuche ausblenden" : "Vorlagen durchsuchen")
+                    }
                 }
-                .listRowBackground(Theme.cardBackground)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
 
             // -- Offene Instanzen --
             if !openInstances.isEmpty {
                 Section {
-                    ForEach(openInstancesSorted) { instance in
-                        InstanceRowView(instance: instance) {
-                            if let char = character {
-                                withAnimation(.spring(response: 0.4)) {
-                                    viewModel.completeInstance(instance, character: char, context: context)
+                    if openQuestSearchExpanded {
+                        openQuestExpandedSearchRow
+                            .listRowBackground(Theme.cardBackground)
+                    }
+                    if filteredOpenInstancesSorted.isEmpty {
+                        Text("Keine offenen Quests für Suche oder Filter.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 12)
+                            .listRowBackground(Theme.cardBackground)
+                    } else {
+                        ForEach(filteredOpenInstancesSorted) { instance in
+                            InstanceRowView(instance: instance) {
+                                if let char = character {
+                                    withAnimation(.spring(response: 0.4)) {
+                                        viewModel.completeInstance(instance, character: char, context: context)
+                                    }
                                 }
                             }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                viewModel.deleteInstance(instance, context: context)
-                            } label: {
-                                Label("Löschen", systemImage: "trash")
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    viewModel.deleteInstance(instance, context: context)
+                                } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
                             }
                         }
                     }
                 } header: {
-                    sectionHeader("Offene Quests", count: openInstances.count, icon: "scroll")
+                    sectionHeader("Offene Quests", count: filteredOpenInstancesSorted.count, icon: "scroll") {
+                        openInstancesFilterMenu
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { openQuestSearchExpanded.toggle() }
+                        } label: {
+                            Image(systemName: openQuestSearchShowsActiveIndicator ? "magnifyingglass.circle.fill" : "magnifyingglass")
+                                .foregroundStyle(Theme.gold)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(openQuestSearchExpanded ? "Suche ausblenden" : "Offene Quests durchsuchen")
+                    }
                 }
                 .listRowBackground(Theme.cardBackground)
             }
@@ -144,11 +240,33 @@ struct TaskListView: View {
             // -- Heute erledigt --
             if !completedToday.isEmpty {
                 Section {
-                    ForEach(completedToday) { instance in
-                        CompletedInstanceRowView(instance: instance)
+                    if completedTodaySearchExpanded {
+                        completedTodayExpandedSearchRow
+                            .listRowBackground(Theme.cardBackground.opacity(0.6))
+                    }
+                    if filteredCompletedToday.isEmpty {
+                        Text("Keine erledigten Quests für diese Suche.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 12)
+                            .listRowBackground(Theme.cardBackground.opacity(0.6))
+                    } else {
+                        ForEach(filteredCompletedToday) { instance in
+                            CompletedInstanceRowView(instance: instance)
+                        }
                     }
                 } header: {
-                    sectionHeader("Heute erledigt", count: completedToday.count, icon: "checkmark.seal.fill")
+                    sectionHeader("Heute erledigt", count: filteredCompletedToday.count, icon: "checkmark.seal.fill") {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { completedTodaySearchExpanded.toggle() }
+                        } label: {
+                            Image(systemName: completedTodaySearchShowsActiveIndicator ? "magnifyingglass.circle.fill" : "magnifyingglass")
+                                .foregroundStyle(Theme.gold)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(completedTodaySearchExpanded ? "Suche ausblenden" : "Erledigte Quests durchsuchen")
+                    }
                 }
                 .listRowBackground(Theme.cardBackground.opacity(0.6))
             }
@@ -157,11 +275,17 @@ struct TaskListView: View {
         .listStyle(.insetGrouped)
     }
 
-    private func sectionHeader(_ title: String, count: Int, icon: String) -> some View {
+    private func sectionHeader<Trailing: View>(
+        _ title: String,
+        count: Int,
+        icon: String,
+        @ViewBuilder trailingActions: () -> Trailing
+    ) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
             Text(title)
             Spacer()
+            trailingActions()
             Text("\(count)")
                 .font(.caption.bold())
                 .padding(.horizontal, 8)
@@ -173,6 +297,134 @@ struct TaskListView: View {
         .foregroundStyle(Theme.gold)
         .font(.caption.bold())
         .textCase(nil)
+    }
+
+    private func sectionHeader(_ title: String, count: Int, icon: String) -> some View {
+        sectionHeader(title, count: count, icon: icon) { EmptyView() }
+    }
+
+    private var templateSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.textSecondary)
+            TextField("Vorlagen durchsuchen …", text: $templateSearchText)
+                .foregroundStyle(Theme.textPrimary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    templateSearchExpanded = false
+                }
+            } label: {
+                Image(systemName: "chevron.up.circle.fill")
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Vorlagensuche ausblenden")
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var openInstancesFilterMenu: some View {
+        Menu {
+            Section("Schwierigkeit") {
+                ForEach(QuestDifficultyFilter.allCases, id: \.self) { option in
+                    Button {
+                        difficultyFilter = option
+                    } label: {
+                        if difficultyFilter == option {
+                            Label(option.menuTitle, systemImage: "checkmark")
+                        } else {
+                            Text(option.menuTitle)
+                        }
+                    }
+                }
+            }
+            Section("Art") {
+                ForEach(QuestRecurrenceFilter.allCases, id: \.self) { option in
+                    Button {
+                        recurrenceFilter = option
+                    } label: {
+                        if recurrenceFilter == option {
+                            Label(option.menuTitle, systemImage: "checkmark")
+                        } else {
+                            Text(option.menuTitle)
+                        }
+                    }
+                }
+            }
+            Section("Fälligkeit") {
+                ForEach(QuestDueFilter.allCases, id: \.self) { option in
+                    Button {
+                        dueFilter = option
+                    } label: {
+                        if dueFilter == option {
+                            Label(option.menuTitle, systemImage: "checkmark")
+                        } else {
+                            Text(option.menuTitle)
+                        }
+                    }
+                }
+            }
+            if openInstanceFiltersActive {
+                Section {
+                    Button("Filter zurücksetzen") {
+                        difficultyFilter = .all
+                        recurrenceFilter = .all
+                        dueFilter = .all
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: openInstanceFiltersActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .font(.title3)
+                .foregroundStyle(Theme.gold)
+        }
+        .accessibilityLabel("Filter für offene Quests")
+    }
+
+    private var openQuestExpandedSearchRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.textSecondary)
+            TextField("Offene Quests durchsuchen …", text: $openQuestSearchText)
+                .foregroundStyle(Theme.textPrimary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    openQuestSearchExpanded = false
+                }
+            } label: {
+                Image(systemName: "chevron.up.circle.fill")
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Suchfeld ausblenden")
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var completedTodayExpandedSearchRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.textSecondary)
+            TextField("Erledigte Quests durchsuchen …", text: $completedTodaySearchText)
+                .foregroundStyle(Theme.textPrimary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    completedTodaySearchExpanded = false
+                }
+            } label: {
+                Image(systemName: "chevron.up.circle.fill")
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Suchfeld ausblenden")
+        }
+        .padding(.vertical, 6)
     }
 
     // MARK: - Empty State
